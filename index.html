@@ -1,1 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Combined Google Calendar Widget</title>
+
+  <style>
+    body {
+      font-family: "Inter", sans-serif;
+      background: #fafafa;
+      padding: 20px;
+      margin: 0;
+      color: #333;
+    }
+
+    .container {
+      max-width: 550px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.06);
+    }
+
+    h2 {
+      text-align: center;
+      margin: 0 0 15px;
+      font-size: 1.5rem;
+    }
+
+    .event {
+      padding: 12px;
+      border-left: 6px solid #888;
+      background: #fff;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+
+    .day {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 4px;
+    }
+
+    .title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .time {
+      font-size: 0.85rem;
+      color: #4a73ff;
+      margin-top: 3px;
+    }
+
+    .calendar-label {
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 3px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <h2>Upcoming Week</h2>
+    <div id="events"></div>
+  </div>
+
+<script>
+  // 👉 Add ALL your Google Calendar ICS links here
+  const CALENDARS = [
+    { 
+      name: "Work", 
+      color: "#FF6B6B",
+      url: "YOUR_WORK_CALENDAR_ICS_URL"
+    },
+    { 
+      name: "School", 
+      color: "#4ECDC4",
+      url: "YOUR_SCHOOL_CALENDAR_ICS_URL"
+    },
+    { 
+      name: "Personal", 
+      color: "#5567FF",
+      url: "YOUR_PERSONAL_CALENDAR_ICS_URL"
+    }
+  ];
+
+  async function loadCalendars() {
+    const events = [];
+
+    for (const cal of CALENDARS) {
+      const text = await fetch(cal.url).then(r => r.text());
+      const parsed = parseICS(text).map(e => ({ ...e, calendar: cal.name, color: cal.color }));
+      events.push(...parsed);
+    }
+
+    const now = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
+
+    const upcoming = events
+      .filter(e => e.start >= now && e.start <= nextWeek)
+      .sort((a, b) => a.start - b.start);
+
+    render(upcoming);
+  }
+
+  function parseICS(data) {
+    const events = [];
+    const lines = data.split(/\r?\n/);
+
+    let event = null;
+
+    for (const line of lines) {
+      if (line.startsWith("BEGIN:VEVENT")) event = {};
+      else if (line.startsWith("END:VEVENT")) {
+        if (event.start) events.push(event);
+        event = null;
+      } else if (event) {
+        if (line.startsWith("SUMMARY:")) event.summary = line.replace("SUMMARY:", "");
+        if (line.startsWith("DTSTART")) event.start = parseICSDate(line);
+        if (line.startsWith("DTEND")) event.end = parseICSDate(line);
+      }
+    }
+    return events;
+  }
+
+  function parseICSDate(line) {
+    return new Date(line.split(":")[1]);
+  }
+
+  function formatDay(date) {
+    return date.toLocaleDateString([], {
+      weekday: "long",
+      month: "short",
+      day: "numeric"
+    });
+  }
+
+  function formatTime(date) {
+    return date.toLocaleTimeString([], {
+      hour: "numeric",
+      minute: "2-digit"
+    });
+  }
+
+  function render(events) {
+    const container = document.getElementById("events");
+
+    if (!events.length) {
+      container.innerHTML = "<p>No events this week 🎉</p>";
+      return;
+    }
+
+    container.innerHTML = events.map(e => `
+      <div class="event" style="border-color:${e.color}">
+        <div class="day">${formatDay(e.start)}</div>
+        <div class="title">${e.summary}</div>
+        <div class="time">${formatTime(e.start)} — ${formatTime(e.end)}</div>
+        <div class="calendar-label">${e.calendar}</div>
+      </div>
+    `).join("");
+  }
+
+  loadCalendars();
+</script>
+
+</body>
+</html>
 
